@@ -37,6 +37,8 @@ const (
 )
 
 var (
+	CwIfOut, CwIfIn float64
+
 	buckets               = prometheus.ExponentialBuckets(0.0001, 2, 15)
 	snmpUnexpectedPduType = promauto.NewCounter(
 		prometheus.CounterOpts{
@@ -474,6 +476,18 @@ func pduToSamples(indexOids []int, pdu *gosnmp.SnmpPDU, metric *config.Metric, o
 	if err != nil {
 		sample = prometheus.NewInvalidMetric(prometheus.NewDesc("snmp_error", "Error calling NewConstMetric", nil, nil),
 			fmt.Errorf("error for metric %s with labels %v from indexOids %v: %v", metric.Name, labelvalues, indexOids, err))
+	}
+
+	if metric.Help == "接收流量" {
+		CwIfIn = value
+
+		sample1, err := prometheus.NewConstMetric(prometheus.NewDesc("cw_in_out", "吞吐量", labelnames, nil),
+			t, CwIfIn+CwIfOut, labelvalues...)
+		if err == nil {
+			return []prometheus.Metric{sample, sample1}
+		}
+	} else if metric.Help == "发送流量" {
+		CwIfOut = value
 	}
 
 	return []prometheus.Metric{sample}
