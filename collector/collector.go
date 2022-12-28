@@ -468,7 +468,9 @@ func pduToSamples(indexOids []int, pdu *gosnmp.SnmpPDU, metric *config.Metric, o
 			labelvalues = append(labelvalues, pduValueAsString(pdu, metricType))
 		}
 	}
-
+	if metric.Help == "5分钟内CPU使用率-类型1" && value == float64(11) {
+		return []prometheus.Metric{}
+	}
 	sample, err := prometheus.NewConstMetric(prometheus.NewDesc(metric.Name, metric.Help, labelnames, nil),
 		t, value, labelvalues...)
 	if err != nil {
