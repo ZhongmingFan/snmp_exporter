@@ -36,9 +36,17 @@ const (
 	namespace = "snmp"
 )
 
-var (
-	CwIfOut, CwIfIn float64
+type snmpMetric struct {
+	metricVal               float64
+	metricLabelValIfindex   string
+	metricLabelValIfifDescr string
+	collectTime             time.Time
+}
 
+var (
+	InmetricList          = make(map[string]snmpMetric)
+	OutmetricList         = make(map[string]snmpMetric)
+	firstTimeCollect      = true
 	buckets               = prometheus.ExponentialBuckets(0.0001, 2, 15)
 	snmpUnexpectedPduType = promauto.NewCounter(
 		prometheus.CounterOpts{
@@ -321,6 +329,39 @@ PduLoop:
 			if head.metric != nil {
 				// Found a match.
 				samples := pduToSamples(oidList[i+1:], &pdu, head.metric, oidToPdu, c.logger)
+				switch head.metric.Oid {
+				case "1.3.6.1.2.1.2.2.1.16":
+					{
+						metricSnmp := getValueLabels(oidList[i+1:], &pdu, head.metric, oidToPdu)
+						if firstTimeCollect {
+							InmetricList[metricSnmp.metricLabelValIfindex] = metricSnmp
+						}
+
+						if time.Since(InmetricList[metricSnmp.metricLabelValIfindex].collectTime) > 1*time.Second {
+							val := (metricSnmp.metricVal - InmetricList[metricSnmp.metricLabelValIfindex].metricVal) / float64(time.Since(InmetricList[metricSnmp.metricLabelValIfindex].collectTime).Seconds())
+
+							ch <- prometheus.MustNewConstMetric(NewDesc("cw_ifout_rate", "发送流量速率", []string{"ifIndex", "ifDescr"}),
+								prometheus.GaugeValue, val, metricSnmp.metricLabelValIfindex, metricSnmp.metricLabelValIfifDescr)
+							InmetricList[metricSnmp.metricLabelValIfindex] = metricSnmp
+						}
+					}
+				case "1.3.6.1.2.1.2.2.1.10":
+					{
+						metricSnmp := getValueLabels(oidList[i+1:], &pdu, head.metric, oidToPdu)
+						if firstTimeCollect {
+							OutmetricList[metricSnmp.metricLabelValIfindex] = metricSnmp
+						}
+
+						if time.Since(OutmetricList[metricSnmp.metricLabelValIfindex].collectTime) > 1*time.Second {
+							val := (metricSnmp.metricVal - OutmetricList[metricSnmp.metricLabelValIfindex].metricVal) / float64(time.Since(OutmetricList[metricSnmp.metricLabelValIfindex].collectTime).Seconds())
+
+							ch <- prometheus.MustNewConstMetric(NewDesc("cw_ifin_rate", "接收流量速率", []string{"ifIndex", "ifDescr"}),
+								prometheus.GaugeValue, val, metricSnmp.metricLabelValIfindex, metricSnmp.metricLabelValIfifDescr)
+							OutmetricList[metricSnmp.metricLabelValIfindex] = metricSnmp
+						}
+					}
+				}
+
 				for _, sample := range samples {
 					ch <- sample
 				}
@@ -328,6 +369,7 @@ PduLoop:
 			}
 		}
 	}
+	firstTimeCollect = false
 	ch <- prometheus.MustNewConstMetric(
 		prometheus.NewDesc("snmp_scrape_duration_seconds", "Total SNMP time scrape took (walk and processing).", nil, nil),
 		prometheus.GaugeValue,
@@ -399,6 +441,25 @@ func parseDateAndTime(pdu *gosnmp.SnmpPDU) (float64, error) {
 	return float64(t.Unix()), nil
 }
 
+func getValueLabels(indexOids []int, pdu *gosnmp.SnmpPDU, metric *config.Metric, oidToPdu map[string]gosnmp.SnmpPDU) snmpMetric {
+	labels := indexesToLabels(indexOids, metric, oidToPdu)
+	value := getPduValue(pdu)
+
+	labelnames := make([]string, 0, len(labels)+1)
+	labelvalues := make([]string, 0, len(labels)+1)
+	for k, v := range labels {
+		labelnames = append(labelnames, k)
+		labelvalues = append(labelvalues, v)
+	}
+
+	metricAtt := &snmpMetric{
+		metricVal:               value,
+		metricLabelValIfindex:   labels["ifIndex"],
+		metricLabelValIfifDescr: labels["ifDescr"],
+		collectTime:             time.Now(),
+	}
+	return *metricAtt
+}
 func pduToSamples(indexOids []int, pdu *gosnmp.SnmpPDU, metric *config.Metric, oidToPdu map[string]gosnmp.SnmpPDU, logger log.Logger) []prometheus.Metric {
 	var err error
 	// The part of the OID that is the indexes.
@@ -471,23 +532,14 @@ func pduToSamples(indexOids []int, pdu *gosnmp.SnmpPDU, metric *config.Metric, o
 		}
 	}
 
+	if strings.Contains(metric.Name, "sysUpTime") || metric.Help == "设备运行时间" {
+		value = value / 10
+	}
 	sample, err := prometheus.NewConstMetric(prometheus.NewDesc(metric.Name, metric.Help, labelnames, nil),
 		t, value, labelvalues...)
 	if err != nil {
 		sample = prometheus.NewInvalidMetric(prometheus.NewDesc("snmp_error", "Error calling NewConstMetric", nil, nil),
 			fmt.Errorf("error for metric %s with labels %v from indexOids %v: %v", metric.Name, labelvalues, indexOids, err))
-	}
-
-	if metric.Help == "接收流量" {
-		CwIfIn = value
-
-		sample1, err := prometheus.NewConstMetric(prometheus.NewDesc("cw_in_out", "吞吐量", labelnames, nil),
-			t, CwIfIn+CwIfOut, labelvalues...)
-		if err == nil {
-			return []prometheus.Metric{sample, sample1}
-		}
-	} else if metric.Help == "发送流量" {
-		CwIfOut = value
 	}
 
 	return []prometheus.Metric{sample}
@@ -797,4 +849,9 @@ func indexesToLabels(indexOids []int, metric *config.Metric, oidToPdu map[string
 	}
 
 	return labels
+}
+
+func NewDesc(name string, help string, label []string) *prometheus.Desc {
+	return prometheus.NewDesc(prometheus.BuildFQName("", "", name),
+		fmt.Sprintf("Gauge metric with %v", help), label, nil)
 }
