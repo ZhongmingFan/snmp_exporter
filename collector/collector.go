@@ -339,10 +339,11 @@ PduLoop:
 
 						if time.Since(InmetricList[metricSnmp.metricLabelValIfindex].collectTime) > 1*time.Second {
 							val := (metricSnmp.metricVal - InmetricList[metricSnmp.metricLabelValIfindex].metricVal) / float64(time.Since(InmetricList[metricSnmp.metricLabelValIfindex].collectTime).Seconds())
-
-							ch <- prometheus.MustNewConstMetric(NewDesc("cw_ifout_rate", "发送流量速率", []string{"ifIndex", "ifDescr"}),
-								prometheus.GaugeValue, val, metricSnmp.metricLabelValIfindex, metricSnmp.metricLabelValIfifDescr)
-							InmetricList[metricSnmp.metricLabelValIfindex] = metricSnmp
+							if val >= float64(0) {
+								ch <- prometheus.MustNewConstMetric(NewDesc("cw_ifout_rate", "发送流量速率", []string{"ifIndex", "ifDescr"}),
+									prometheus.GaugeValue, val, metricSnmp.metricLabelValIfindex, metricSnmp.metricLabelValIfifDescr)
+								InmetricList[metricSnmp.metricLabelValIfindex] = metricSnmp
+							}
 						}
 					}
 				case "1.3.6.1.2.1.2.2.1.10":
@@ -354,10 +355,11 @@ PduLoop:
 
 						if time.Since(OutmetricList[metricSnmp.metricLabelValIfindex].collectTime) > 1*time.Second {
 							val := (metricSnmp.metricVal - OutmetricList[metricSnmp.metricLabelValIfindex].metricVal) / float64(time.Since(OutmetricList[metricSnmp.metricLabelValIfindex].collectTime).Seconds())
-
-							ch <- prometheus.MustNewConstMetric(NewDesc("cw_ifin_rate", "接收流量速率", []string{"ifIndex", "ifDescr"}),
-								prometheus.GaugeValue, val, metricSnmp.metricLabelValIfindex, metricSnmp.metricLabelValIfifDescr)
-							OutmetricList[metricSnmp.metricLabelValIfindex] = metricSnmp
+							if val >= float64(0) {
+								ch <- prometheus.MustNewConstMetric(NewDesc("cw_ifin_rate", "接收流量速率", []string{"ifIndex", "ifDescr"}),
+									prometheus.GaugeValue, val, metricSnmp.metricLabelValIfindex, metricSnmp.metricLabelValIfifDescr)
+								OutmetricList[metricSnmp.metricLabelValIfindex] = metricSnmp
+							}
 						}
 					}
 				}
