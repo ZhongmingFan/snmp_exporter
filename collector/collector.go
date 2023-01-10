@@ -44,9 +44,56 @@ type snmpMetric struct {
 }
 
 var (
-	InmetricList          = make(map[string]snmpMetric)
-	OutmetricList         = make(map[string]snmpMetric)
-	firstTimeCollect      = true
+	InmetricList     = make(map[string]snmpMetric)
+	OutmetricList    = make(map[string]snmpMetric)
+	firstTimeCollect = true
+
+	// IgnoreZeroValueMetric 过滤0值的oid指标
+	IgnoreZeroValueMetric = []string{
+		// 思科
+		"1.3.6.1.4.1.9.9.109.1.1.1.1.8",
+		"1.3.6.1.4.1.9.9.109.1.1.1.1.5",
+		"1.3.6.1.4.1.9.2.1.58",
+		"1.3.6.1.4.1.9.9.109.1.1.1.1.13",
+		"1.3.6.1.4.1.9.9.48.1.1.1.5",
+		"1.3.6.1.4.1.9.9.48.1.2.1.2",
+		"1.3.6.1.4.1.9.9.13.1.3.1.3",
+		"1.3.6.1.4.1.9.9.91.1.1.1.1.4",
+
+		// H3C
+		"1.3.6.1.4.1.2011.10.2.6.1.1.1.1.6",
+		"1.3.6.1.4.1.25506.2.6.1.1.1.1.6",
+		"1.3.6.1.4.1.2011.10.2.6.1.1.1.1.8",
+		"1.3.6.1.4.1.25506.2.6.1.1.1.1.8",
+		"1.3.6.1.4.1.25506.2.70.1.1.1.15",
+		"1.3.6.1.4.1.25506.2.6.1.1.1.1.12",
+		"1.3.6.1.4.1.25506.8.35.9.1.3.1.3",
+
+		// 华为
+		"1.3.6.1.4.1.2011.5.25.31.1.1.1.1.5",
+		"1.3.6.1.4.1.2011.5.25.31.1.1.1.1.45",
+		"1.3.6.1.4.1.2011.5.25.31.1.1.1.1.7",
+		"1.3.6.1.4.1.2011.5.25.31.1.1.1.1.9",
+		"1.3.6.1.4.1.2011.5.25.31.1.1.1.1.37",
+		"1.3.6.1.4.1.2011.5.25.31.1.1.1.1.11",
+
+		// 锐捷
+		"1.3.6.1.4.1.4881.1.1.10.2.36.1.1.3",
+		"1.3.6.1.4.1.4881.1.1.10.2.35.1.1.1.3",
+
+		// 飞塔
+		"1.3.6.1.4.1.12356.101.4.1.3",
+		"1.3.6.1.4.1.12356.101.4.1.4",
+		"1.3.6.1.4.1.12356.101.4.1.6",
+
+		// checkpoint防火墙
+		"1.3.6.1.4.1.2620.1.1.31.2",
+		"1.3.6.1.4.1.2620.1.1.31.1.1.2",
+		"1.3.6.1.4.1.2620.1.6.7.2.4",
+		"1.3.6.1.4.1.2620.1.6.7.4.4",
+		"1.3.6.1.4.1.2620.1.6.7.8.1.1.3",
+	}
+
 	buckets               = prometheus.ExponentialBuckets(0.0001, 2, 15)
 	snmpUnexpectedPduType = promauto.NewCounter(
 		prometheus.CounterOpts{
@@ -537,6 +584,14 @@ func pduToSamples(indexOids []int, pdu *gosnmp.SnmpPDU, metric *config.Metric, o
 	if strings.Contains(metric.Name, "sysUpTime") || metric.Help == "设备运行时间" {
 		value = value / 10
 	}
+
+	// 不采集0值的oid指标
+	for _, oid := range IgnoreZeroValueMetric {
+		if metric.Oid == oid && value == float64(0) {
+			return []prometheus.Metric{}
+		}
+	}
+
 	sample, err := prometheus.NewConstMetric(prometheus.NewDesc(metric.Name, metric.Help, labelnames, nil),
 		t, value, labelvalues...)
 	if err != nil {
