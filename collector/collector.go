@@ -49,49 +49,49 @@ var (
 	firstTimeCollect = true
 
 	// IgnoreZeroValueMetric 过滤0值的oid指标
-	IgnoreZeroValueMetric = []string{
+	IgnoreZeroValueMetric = map[string]bool{
 		// 思科
-		"1.3.6.1.4.1.9.9.109.1.1.1.1.8",
-		"1.3.6.1.4.1.9.9.109.1.1.1.1.5",
-		"1.3.6.1.4.1.9.2.1.58",
-		"1.3.6.1.4.1.9.9.109.1.1.1.1.13",
-		"1.3.6.1.4.1.9.9.48.1.1.1.5",
-		"1.3.6.1.4.1.9.9.48.1.2.1.2",
-		"1.3.6.1.4.1.9.9.13.1.3.1.3",
-		"1.3.6.1.4.1.9.9.91.1.1.1.1.4",
+		"1.3.6.1.4.1.9.9.109.1.1.1.1.8":  true,
+		"1.3.6.1.4.1.9.9.109.1.1.1.1.5":  true,
+		"1.3.6.1.4.1.9.2.1.58":           true,
+		"1.3.6.1.4.1.9.9.109.1.1.1.1.13": true,
+		"1.3.6.1.4.1.9.9.48.1.1.1.5":     true,
+		"1.3.6.1.4.1.9.9.48.1.2.1.2":     true,
+		"1.3.6.1.4.1.9.9.13.1.3.1.3":     true,
+		"1.3.6.1.4.1.9.9.91.1.1.1.1.4":   true,
 
 		// H3C
-		"1.3.6.1.4.1.2011.10.2.6.1.1.1.1.6",
-		"1.3.6.1.4.1.25506.2.6.1.1.1.1.6",
-		"1.3.6.1.4.1.2011.10.2.6.1.1.1.1.8",
-		"1.3.6.1.4.1.25506.2.6.1.1.1.1.8",
-		"1.3.6.1.4.1.25506.2.70.1.1.1.15",
-		"1.3.6.1.4.1.25506.2.6.1.1.1.1.12",
-		"1.3.6.1.4.1.25506.8.35.9.1.3.1.3",
+		"1.3.6.1.4.1.2011.10.2.6.1.1.1.1.6": true,
+		"1.3.6.1.4.1.25506.2.6.1.1.1.1.6":   true,
+		"1.3.6.1.4.1.2011.10.2.6.1.1.1.1.8": true,
+		"1.3.6.1.4.1.25506.2.6.1.1.1.1.8":   true,
+		"1.3.6.1.4.1.25506.2.70.1.1.1.15":   true,
+		"1.3.6.1.4.1.25506.2.6.1.1.1.1.12":  true,
+		"1.3.6.1.4.1.25506.8.35.9.1.3.1.3":  true,
 
 		// 华为
-		"1.3.6.1.4.1.2011.5.25.31.1.1.1.1.5",
-		"1.3.6.1.4.1.2011.5.25.31.1.1.1.1.45",
-		"1.3.6.1.4.1.2011.5.25.31.1.1.1.1.7",
-		"1.3.6.1.4.1.2011.5.25.31.1.1.1.1.9",
-		"1.3.6.1.4.1.2011.5.25.31.1.1.1.1.37",
-		"1.3.6.1.4.1.2011.5.25.31.1.1.1.1.11",
+		"1.3.6.1.4.1.2011.5.25.31.1.1.1.1.5":  true,
+		"1.3.6.1.4.1.2011.5.25.31.1.1.1.1.45": true,
+		"1.3.6.1.4.1.2011.5.25.31.1.1.1.1.7":  true,
+		"1.3.6.1.4.1.2011.5.25.31.1.1.1.1.9":  true,
+		"1.3.6.1.4.1.2011.5.25.31.1.1.1.1.37": true,
+		"1.3.6.1.4.1.2011.5.25.31.1.1.1.1.11": true,
 
 		// 锐捷
-		"1.3.6.1.4.1.4881.1.1.10.2.36.1.1.3",
-		"1.3.6.1.4.1.4881.1.1.10.2.35.1.1.1.3",
+		"1.3.6.1.4.1.4881.1.1.10.2.36.1.1.3":   true,
+		"1.3.6.1.4.1.4881.1.1.10.2.35.1.1.1.3": true,
 
 		// 飞塔
-		"1.3.6.1.4.1.12356.101.4.1.3",
-		"1.3.6.1.4.1.12356.101.4.1.4",
-		"1.3.6.1.4.1.12356.101.4.1.6",
+		"1.3.6.1.4.1.12356.101.4.1.3": true,
+		"1.3.6.1.4.1.12356.101.4.1.4": true,
+		"1.3.6.1.4.1.12356.101.4.1.6": true,
 
 		// checkpoint防火墙
-		"1.3.6.1.4.1.2620.1.1.31.2",
-		"1.3.6.1.4.1.2620.1.1.31.1.1.2",
-		"1.3.6.1.4.1.2620.1.6.7.2.4",
-		"1.3.6.1.4.1.2620.1.6.7.4.4",
-		"1.3.6.1.4.1.2620.1.6.7.8.1.1.3",
+		"1.3.6.1.4.1.2620.1.1.31.2":      true,
+		"1.3.6.1.4.1.2620.1.1.31.1.1.2":  true,
+		"1.3.6.1.4.1.2620.1.6.7.2.4":     true,
+		"1.3.6.1.4.1.2620.1.6.7.4.4":     true,
+		"1.3.6.1.4.1.2620.1.6.7.8.1.1.3": true,
 	}
 
 	buckets               = prometheus.ExponentialBuckets(0.0001, 2, 15)
@@ -385,7 +385,7 @@ PduLoop:
 						}
 
 						if time.Since(InmetricList[metricSnmp.metricLabelValIfindex].collectTime) > 1*time.Second {
-							val := (metricSnmp.metricVal - InmetricList[metricSnmp.metricLabelValIfindex].metricVal) / float64(time.Since(InmetricList[metricSnmp.metricLabelValIfindex].collectTime).Seconds())
+							val := (metricSnmp.metricVal - InmetricList[metricSnmp.metricLabelValIfindex].metricVal) / time.Since(InmetricList[metricSnmp.metricLabelValIfindex].collectTime).Seconds()
 							if val >= float64(0) {
 								ch <- prometheus.MustNewConstMetric(NewDesc("cw_ifout_rate", "发送流量速率", []string{"ifIndex", "ifDescr"}),
 									prometheus.GaugeValue, val, metricSnmp.metricLabelValIfindex, metricSnmp.metricLabelValIfifDescr)
@@ -401,7 +401,7 @@ PduLoop:
 						}
 
 						if time.Since(OutmetricList[metricSnmp.metricLabelValIfindex].collectTime) > 1*time.Second {
-							val := (metricSnmp.metricVal - OutmetricList[metricSnmp.metricLabelValIfindex].metricVal) / float64(time.Since(OutmetricList[metricSnmp.metricLabelValIfindex].collectTime).Seconds())
+							val := (metricSnmp.metricVal - OutmetricList[metricSnmp.metricLabelValIfindex].metricVal) / (time.Since(OutmetricList[metricSnmp.metricLabelValIfindex].collectTime).Seconds())
 							if val >= float64(0) {
 								ch <- prometheus.MustNewConstMetric(NewDesc("cw_ifin_rate", "接收流量速率", []string{"ifIndex", "ifDescr"}),
 									prometheus.GaugeValue, val, metricSnmp.metricLabelValIfindex, metricSnmp.metricLabelValIfifDescr)
@@ -515,6 +515,14 @@ func pduToSamples(indexOids []int, pdu *gosnmp.SnmpPDU, metric *config.Metric, o
 	labels := indexesToLabels(indexOids, metric, oidToPdu)
 
 	value := getPduValue(pdu)
+
+	//不采集0值的oid指标
+	if IgnoreZeroValueMetric[metric.Oid] == true && value == float64(0) {
+		return []prometheus.Metric{}
+	} else if IgnoreZeroValueMetric["1.3.6.1.4.1.25506.2.6.1.1.1.1.12"] && value == float64(65535) {
+		return []prometheus.Metric{}
+	}
+
 	t := prometheus.UntypedValue
 
 	labelnames := make([]string, 0, len(labels)+1)
@@ -583,13 +591,6 @@ func pduToSamples(indexOids []int, pdu *gosnmp.SnmpPDU, metric *config.Metric, o
 
 	if strings.Contains(metric.Name, "sysUpTime") || metric.Help == "设备运行时间" {
 		value = value / 10
-	}
-
-	// 不采集0值的oid指标
-	for _, oid := range IgnoreZeroValueMetric {
-		if metric.Oid == oid && value == float64(0) {
-			return []prometheus.Metric{}
-		}
 	}
 
 	sample, err := prometheus.NewConstMetric(prometheus.NewDesc(metric.Name, metric.Help, labelnames, nil),
