@@ -518,11 +518,16 @@ func pduToSamples(indexOids []int, pdu *gosnmp.SnmpPDU, metric *config.Metric, o
 
 	value := getPduValue(pdu)
 
-	//不采集0值的oid指标
+	//不采集特殊值的oid指标
 	if IgnoreZeroValueMetric[metric.Oid] == true && value == float64(0) {
 		return []prometheus.Metric{}
-	} else if IgnoreZeroValueMetric["1.3.6.1.4.1.25506.2.6.1.1.1.1.12"] && value == float64(65535) {
-		return []prometheus.Metric{}
+	} else if strings.Contains(metric.Help, "温度") {
+		switch value {
+		case float64(65535):
+			return []prometheus.Metric{}
+		case float64(2147483647):
+			return []prometheus.Metric{}
+		}
 	}
 
 	t := prometheus.UntypedValue
