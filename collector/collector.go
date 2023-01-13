@@ -379,7 +379,7 @@ PduLoop:
 				// Found a match.
 				samples := pduToSamples(oidList[i+1:], &pdu, head.metric, oidToPdu, c.logger)
 				switch head.metric.Oid {
-				case "1.3.6.1.2.1.2.2.1.16":
+				case "1.3.6.1.2.1.31.1.1.1.10":
 					{
 						metricSnmp := getValueLabels(oidList[i+1:], &pdu, head.metric, oidToPdu)
 						if firstTimeCollect {
@@ -395,7 +395,7 @@ PduLoop:
 							InmetricList[metricSnmp.metricLabelValIfindex] = metricSnmp
 						}
 					}
-				case "1.3.6.1.2.1.2.2.1.10":
+				case "1.3.6.1.2.1.31.1.1.1.6":
 					{
 						metricSnmp := getValueLabels(oidList[i+1:], &pdu, head.metric, oidToPdu)
 						if firstTimeCollect {
@@ -596,8 +596,9 @@ func pduToSamples(indexOids []int, pdu *gosnmp.SnmpPDU, metric *config.Metric, o
 		}
 	}
 
+	// 实际采集厘秒，监控支持毫秒，需要x10
 	if strings.Contains(metric.Name, "sysUpTime") || metric.Help == "设备运行时间" {
-		value = value / 10
+		value = value * 10
 	}
 
 	sample, err := prometheus.NewConstMetric(prometheus.NewDesc(metric.Name, metric.Help, labelnames, nil),
