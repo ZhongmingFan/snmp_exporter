@@ -47,6 +47,7 @@ var (
 	InmetricList     = make(map[string]snmpMetric)
 	OutmetricList    = make(map[string]snmpMetric)
 	firstTimeCollect = true
+	OspfCount        = float64(0)
 
 	// IgnoreZeroValueMetric 过滤0值的oid指标
 	IgnoreZeroValueMetric = map[string]bool{
@@ -379,6 +380,7 @@ PduLoop:
 				// Found a match.
 				samples := pduToSamples(oidList[i+1:], &pdu, head.metric, oidToPdu, c.logger)
 				switch head.metric.Oid {
+				// 发送流量速率
 				case "1.3.6.1.2.1.31.1.1.1.10":
 					{
 						metricSnmp := getValueLabels(oidList[i+1:], &pdu, head.metric, oidToPdu)
@@ -395,6 +397,7 @@ PduLoop:
 							InmetricList[metricSnmp.metricLabelValIfindex] = metricSnmp
 						}
 					}
+				// 接收流量速率
 				case "1.3.6.1.2.1.31.1.1.1.6":
 					{
 						metricSnmp := getValueLabels(oidList[i+1:], &pdu, head.metric, oidToPdu)
@@ -411,6 +414,9 @@ PduLoop:
 							OutmetricList[metricSnmp.metricLabelValIfindex] = metricSnmp
 						}
 					}
+				// ospf邻居数量
+				case "1.3.6.1.2.1.14.10.1.6":
+					OspfCount = OspfCount + 1
 				}
 
 				for _, sample := range samples {
@@ -421,6 +427,12 @@ PduLoop:
 		}
 	}
 	firstTimeCollect = false
+
+	// ospf邻居数量
+	ch <- prometheus.MustNewConstMetric(NewDesc("cw_ospf_count", "ospf邻居数量", nil),
+		prometheus.GaugeValue, OspfCount)
+	OspfCount = float64(0)
+
 	ch <- prometheus.MustNewConstMetric(
 		prometheus.NewDesc("snmp_scrape_duration_seconds", "Total SNMP time scrape took (walk and processing).", nil, nil),
 		prometheus.GaugeValue,
