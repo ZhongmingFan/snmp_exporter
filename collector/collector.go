@@ -40,14 +40,23 @@ type snmpMetric struct {
 	metricVal               float64
 	metricLabelValIfindex   string
 	metricLabelValIfifDescr string
+	metricLabels            map[string]string
 	collectTime             time.Time
 }
 
+type ciscoMemUsedPercentMetric1 struct {
+	usedMemVal                     float64
+	unUsedMemVal                   float64
+	metricLabelValcpmCPUTotalIndex string
+	collectTime                    time.Time
+}
+
 var (
-	InmetricList     = make(map[string]snmpMetric)
-	OutmetricList    = make(map[string]snmpMetric)
-	firstTimeCollect = true
-	OspfCount        = float64(0)
+	InmetricList            = make(map[string]snmpMetric)
+	OutmetricList           = make(map[string]snmpMetric)
+	firstTimeCollect        = true
+	OspfCount               = float64(0)
+	CiscoMemUsedPercentList = make(map[string]ciscoMemUsedPercentMetric1)
 
 	// IgnoreZeroValueMetric 过滤0值的oid指标
 	IgnoreZeroValueMetric = map[string]bool{
@@ -414,9 +423,32 @@ PduLoop:
 							OutmetricList[metricSnmp.metricLabelValIfindex] = metricSnmp
 						}
 					}
+				// 思科特殊型号已使用内存-类型1
+				case "1.3.6.1.4.1.9.9.109.1.1.1.1.12":
+					{
+						metricSnmp := getValueLabels(oidList[i+1:], &pdu, head.metric, oidToPdu)
+						unUsedMem := CiscoMemUsedPercentList[metricSnmp.metricLabels["cpmCPUTotalIndex"]].unUsedMemVal
+						CiscoMemUsedPercentList[metricSnmp.metricLabels["cpmCPUTotalIndex"]] = ciscoMemUsedPercentMetric1{
+							usedMemVal:                     metricSnmp.metricVal,
+							unUsedMemVal:                   unUsedMem,
+							metricLabelValcpmCPUTotalIndex: metricSnmp.metricLabels["cpmCPUTotalIndex"],
+						}
+					}
+				// 思科特殊型号剩余内存-类型1
+				case "1.3.6.1.4.1.9.9.109.1.1.1.1.13":
+					{
+						metricSnmp := getValueLabels(oidList[i+1:], &pdu, head.metric, oidToPdu)
+						usedMem := CiscoMemUsedPercentList[metricSnmp.metricLabels["cpmCPUTotalIndex"]].usedMemVal
+						CiscoMemUsedPercentList[metricSnmp.metricLabels["cpmCPUTotalIndex"]] = ciscoMemUsedPercentMetric1{
+							usedMemVal:                     usedMem,
+							unUsedMemVal:                   metricSnmp.metricVal,
+							metricLabelValcpmCPUTotalIndex: metricSnmp.metricLabels["cpmCPUTotalIndex"],
+						}
+					}
+
 				// ospf邻居数量
 				case "1.3.6.1.2.1.14.10.1.6":
-					OspfCount = OspfCount + 1
+					OspfCount++
 				}
 
 				for _, sample := range samples {
@@ -432,6 +464,15 @@ PduLoop:
 	ch <- prometheus.MustNewConstMetric(NewDesc("cw_ospf_count", "ospf邻居数量", nil),
 		prometheus.GaugeValue, OspfCount)
 	OspfCount = float64(0)
+
+	//思科特殊型号内存使用率-类型1
+	for _, metric := range CiscoMemUsedPercentList {
+		memMetric, _ := prometheus.NewConstMetric(prometheus.NewDesc("cw_CiscoSwitch_cpmCPUMemoryUsedPercent", "内存使用率-类型1", []string{"cpmCPUTotalIndex"}, nil),
+			prometheus.GaugeValue, 100*(metric.usedMemVal/(metric.unUsedMemVal+metric.usedMemVal)), metric.metricLabelValcpmCPUTotalIndex)
+		if err == nil {
+			ch <- memMetric
+		}
+	}
 
 	ch <- prometheus.MustNewConstMetric(
 		prometheus.NewDesc("snmp_scrape_duration_seconds", "Total SNMP time scrape took (walk and processing).", nil, nil),
@@ -519,6 +560,7 @@ func getValueLabels(indexOids []int, pdu *gosnmp.SnmpPDU, metric *config.Metric,
 		metricVal:               value,
 		metricLabelValIfindex:   labels["ifIndex"],
 		metricLabelValIfifDescr: labels["ifDescr"],
+		metricLabels:            labels,
 		collectTime:             time.Now(),
 	}
 	return *metricAtt
