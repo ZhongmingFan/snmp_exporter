@@ -51,12 +51,21 @@ type ciscoMemUsedPercentMetric1 struct {
 	collectTime                    time.Time
 }
 
+type ciscoMemUsedPercentMetric2 struct {
+	usedMemVal          float64
+	unUsedMemVal        float64
+	ciscoMemoryPoolName string
+	ciscoMemoryPoolType string
+	collectTime         time.Time
+}
+
 var (
-	InmetricList            = make(map[string]snmpMetric)
-	OutmetricList           = make(map[string]snmpMetric)
-	firstTimeCollect        = true
-	OspfCount               = float64(0)
-	CiscoMemUsedPercentList = make(map[string]ciscoMemUsedPercentMetric1)
+	InmetricList             = make(map[string]snmpMetric)
+	OutmetricList            = make(map[string]snmpMetric)
+	firstTimeCollect         = true
+	OspfCount                = float64(0)
+	CiscoMemUsedPercentList1 = make(map[string]ciscoMemUsedPercentMetric1)
+	CiscoMemUsedPercentList2 = make(map[string]ciscoMemUsedPercentMetric2)
 
 	// IgnoreZeroValueMetric 过滤0值的oid指标
 	IgnoreZeroValueMetric = map[string]bool{
@@ -427,8 +436,8 @@ PduLoop:
 				case "1.3.6.1.4.1.9.9.109.1.1.1.1.12":
 					{
 						metricSnmp := getValueLabels(oidList[i+1:], &pdu, head.metric, oidToPdu)
-						unUsedMem := CiscoMemUsedPercentList[metricSnmp.metricLabels["cpmCPUTotalIndex"]].unUsedMemVal
-						CiscoMemUsedPercentList[metricSnmp.metricLabels["cpmCPUTotalIndex"]] = ciscoMemUsedPercentMetric1{
+						unUsedMem := CiscoMemUsedPercentList1[metricSnmp.metricLabels["cpmCPUTotalIndex"]].unUsedMemVal
+						CiscoMemUsedPercentList1[metricSnmp.metricLabels["cpmCPUTotalIndex"]] = ciscoMemUsedPercentMetric1{
 							usedMemVal:                     metricSnmp.metricVal,
 							unUsedMemVal:                   unUsedMem,
 							metricLabelValcpmCPUTotalIndex: metricSnmp.metricLabels["cpmCPUTotalIndex"],
@@ -438,11 +447,38 @@ PduLoop:
 				case "1.3.6.1.4.1.9.9.109.1.1.1.1.13":
 					{
 						metricSnmp := getValueLabels(oidList[i+1:], &pdu, head.metric, oidToPdu)
-						usedMem := CiscoMemUsedPercentList[metricSnmp.metricLabels["cpmCPUTotalIndex"]].usedMemVal
-						CiscoMemUsedPercentList[metricSnmp.metricLabels["cpmCPUTotalIndex"]] = ciscoMemUsedPercentMetric1{
+						usedMem := CiscoMemUsedPercentList1[metricSnmp.metricLabels["cpmCPUTotalIndex"]].usedMemVal
+						CiscoMemUsedPercentList1[metricSnmp.metricLabels["cpmCPUTotalIndex"]] = ciscoMemUsedPercentMetric1{
 							usedMemVal:                     usedMem,
 							unUsedMemVal:                   metricSnmp.metricVal,
 							metricLabelValcpmCPUTotalIndex: metricSnmp.metricLabels["cpmCPUTotalIndex"],
+						}
+					}
+
+				// 思科特殊型号已使用内存-类型2
+				case "1.3.6.1.4.1.9.9.48.1.1.1.5":
+					{
+						metricSnmp := getValueLabels(oidList[i+1:], &pdu, head.metric, oidToPdu)
+						labelIndexCombine := metricSnmp.metricLabels["ciscoMemoryPoolName"] + metricSnmp.metricLabels["ciscoMemoryPoolType"]
+						unUsedMem := CiscoMemUsedPercentList2[labelIndexCombine].unUsedMemVal
+						CiscoMemUsedPercentList2[labelIndexCombine] = ciscoMemUsedPercentMetric2{
+							usedMemVal:          metricSnmp.metricVal,
+							unUsedMemVal:        unUsedMem,
+							ciscoMemoryPoolName: metricSnmp.metricLabels["ciscoMemoryPoolName"],
+							ciscoMemoryPoolType: metricSnmp.metricLabels["ciscoMemoryPoolType"],
+						}
+					}
+				// 思科特殊型号剩余内存-类型2
+				case "1.3.6.1.4.1.9.9.48.1.1.1.6":
+					{
+						metricSnmp := getValueLabels(oidList[i+1:], &pdu, head.metric, oidToPdu)
+						labelIndexCombine := metricSnmp.metricLabels["ciscoMemoryPoolName"] + metricSnmp.metricLabels["ciscoMemoryPoolType"]
+						usedMem := CiscoMemUsedPercentList2[labelIndexCombine].usedMemVal
+						CiscoMemUsedPercentList2[labelIndexCombine] = ciscoMemUsedPercentMetric2{
+							usedMemVal:          usedMem,
+							unUsedMemVal:        metricSnmp.metricVal,
+							ciscoMemoryPoolName: metricSnmp.metricLabels["ciscoMemoryPoolName"],
+							ciscoMemoryPoolType: metricSnmp.metricLabels["ciscoMemoryPoolType"],
 						}
 					}
 
@@ -466,9 +502,17 @@ PduLoop:
 	OspfCount = float64(0)
 
 	//思科特殊型号内存使用率-类型1
-	for _, metric := range CiscoMemUsedPercentList {
-		memMetric, _ := prometheus.NewConstMetric(prometheus.NewDesc("cw_CiscoSwitch_cpmCPUMemoryUsedPercent", "内存使用率-类型1", []string{"cpmCPUTotalIndex"}, nil),
+	for _, metric := range CiscoMemUsedPercentList1 {
+		memMetric, _ := prometheus.NewConstMetric(prometheus.NewDesc("cw_CiscoSwitch_cpmCPUMemoryUsedPercent_model1", "内存使用率-类型1", []string{"cpmCPUTotalIndex"}, nil),
 			prometheus.GaugeValue, 100*(metric.usedMemVal/(metric.unUsedMemVal+metric.usedMemVal)), metric.metricLabelValcpmCPUTotalIndex)
+		if err == nil {
+			ch <- memMetric
+		}
+	}
+	//思科特殊型号内存使用率-类型2
+	for _, metric := range CiscoMemUsedPercentList2 {
+		memMetric, _ := prometheus.NewConstMetric(prometheus.NewDesc("cw_CiscoSwitch_cpmCPUMemoryUsedPercent_model2", "内存使用率-类型2", []string{"ciscoMemoryPoolName", "ciscoMemoryPoolType"}, nil),
+			prometheus.GaugeValue, 100*(metric.usedMemVal/(metric.unUsedMemVal+metric.usedMemVal)), metric.ciscoMemoryPoolName, metric.ciscoMemoryPoolType)
 		if err == nil {
 			ch <- memMetric
 		}
