@@ -503,7 +503,7 @@ PduLoop:
 
 	//思科特殊型号内存使用率-类型1
 	for _, metric := range CiscoMemUsedPercentList1 {
-		memMetric, _ := prometheus.NewConstMetric(prometheus.NewDesc("cw_CiscoSwitch_cpmCPUMemoryUsedPercent_model1", "内存使用率-类型1", []string{"cpmCPUTotalIndex"}, nil),
+		memMetric, err := prometheus.NewConstMetric(prometheus.NewDesc("cw_CiscoSwitch_cpmCPUMemoryUsedPercent_model1", "内存使用率-类型1", []string{"cpmCPUTotalIndex"}, nil),
 			prometheus.GaugeValue, 100*(metric.usedMemVal/(metric.unUsedMemVal+metric.usedMemVal)), metric.metricLabelValcpmCPUTotalIndex)
 		if err == nil {
 			ch <- memMetric
@@ -511,7 +511,7 @@ PduLoop:
 	}
 	//思科特殊型号内存使用率-类型2
 	for _, metric := range CiscoMemUsedPercentList2 {
-		memMetric, _ := prometheus.NewConstMetric(prometheus.NewDesc("cw_CiscoSwitch_cpmCPUMemoryUsedPercent_model2", "内存使用率-类型2", []string{"ciscoMemoryPoolName", "ciscoMemoryPoolType"}, nil),
+		memMetric, err := prometheus.NewConstMetric(prometheus.NewDesc("cw_CiscoSwitch_cpmCPUMemoryUsedPercent_model2", "内存使用率-类型2", []string{"ciscoMemoryPoolName", "ciscoMemoryPoolType"}, nil),
 			prometheus.GaugeValue, 100*(metric.usedMemVal/(metric.unUsedMemVal+metric.usedMemVal)), metric.ciscoMemoryPoolName, metric.ciscoMemoryPoolType)
 		if err == nil {
 			ch <- memMetric
